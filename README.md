@@ -1,37 +1,86 @@
-# roastgit
+# roastgit 🔥😈
 
-A CLI that analyzes your local Git history and prints a humorous roast report of your commit habits. It uses **only local Git data** (no network calls) and works offline.
+**Roast your Git habits. Learn something. Laugh a little.**
 
-Disclaimer: it's a joke tool. Don't be mean to coworkers.
+`roastgit` is a fast, offline CLI that analyzes your local Git history and delivers a humorous roast report: commit message crimes, midnight gremlin stats, deadline scrambles, chunky commits, and more. It also ships JSON output for automation and a wholesome mode for kinder feedback.
 
-## Features
-- Commit message analysis (generic, emoji-only, too long, "lying", panic streaks)
-- Cadence and timing analysis (midnight commits, deadline spikes, streaks)
-- Repo hygiene signals (merge ratio, branch names)
-- Chunkiness stats (large commits, binary blobs)
-- JSON output for automation
-- Roast intensity, wholesome mode, and profanity censor
+> Disclaimer: it’s a joke tool. Don’t be mean to coworkers.
 
-## Install / Build
-Requires Go 1.22+ and a local Git executable.
+---
 
+## ✨ What You Get
+- **Commit message analysis**: generic, too-short/long, emoji-only, and “lying” messages.
+- **Cadence insights**: commits/day, midnight gremlin score, deadline spikes, streaks.
+- **Repo hygiene**: merge ratio, branch name quality, linearity.
+- **Chunkiness**: large commits and binary blobs.
+- **Configurable tone**: intensity 0–5, wholesome mode, and profanity censor.
+- **Offline-only**: uses local git data — no network calls.
+
+---
+
+## 🚀 Quick Start
+
+### Install / Build (Go 1.22+ required)
 ```bash
+# from the repo root
 go build ./cmd/roastgit
 ```
-
 This produces a `roastgit` binary in the repo root.
 
-## Usage
+### Run
 ```bash
 ./roastgit
+```
+
+---
+
+## 🧰 Usage Examples
+```bash
+# analyze current repo
+./roastgit
+
+# date range filtering
 ./roastgit --since 2024-01-01 --until 2024-12-31
-./roastgit --author "alex@example.com" --intensity 5
+
+# filter by author
+./roastgit --author "alex@example.com"
+
+# crank the heat
+./roastgit --intensity 5
+
+# wholesome + censor
 ./roastgit --wholesome --censor
+
+# full size analysis (slower)
 ./roastgit --deep
+
+# JSON output
 ./roastgit --json > report.json
 ```
 
-## Example Output
+---
+
+## 🧩 Flags
+```
+--path string         path to repo (default: auto-detect from cwd)
+--since YYYY-MM-DD
+--until YYYY-MM-DD
+--author string
+--json               output JSON only
+--no-color           disable ANSI colors
+--intensity int      0-5 (default 3)
+--wholesome          wholesome mode
+--censor             censor profanity
+--deep               analyze all commits for numstat-based metrics
+--max-commits int    limit commits analyzed from newest backwards (default 0 = no limit)
+--tz string          "local" (default) or "commit"
+--explain            include scoring explanation in text output
+-h, --help
+```
+
+---
+
+## 📝 Sample Output
 ```
 Roastgit Report
 Repo: example-repo (/path/to/example-repo)
@@ -80,12 +129,28 @@ Tips
 Hints: try --deep for full size analysis, --wholesome for kinder output, or --json for machine use.
 ```
 
-## Performance Notes
-- Uses streaming parsing of `git log` output for speed and low memory.
-- For large repos, size analysis is sampled by default (up to 500 commits).
-- Use `--deep` to analyze all commit sizes (slower but complete).
+---
 
-## Testing
+## ⚡ Performance Notes
+- Uses streaming parsing of `git log` for speed and low memory.
+- For large repos, size analysis is sampled by default (up to 500 commits).
+- Use `--deep` for complete size stats (slower, but accurate).
+
+---
+
+## ✅ Testing
 ```bash
 go test ./...
 ```
+
+---
+
+## 🛡️ Requirements
+- **Go 1.22+**
+- **Git executable** available on your PATH
+- Works on **macOS, Linux, and Windows**
+
+---
+
+## 🤝 Contributing
+See `AGENTS.md` for project guidelines and development notes.
