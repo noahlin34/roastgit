@@ -3,6 +3,8 @@ package render
 import (
 	"fmt"
 	"math"
+	"os"
+	"strconv"
 	"strings"
 
 	"roastgit/internal/model"
@@ -24,8 +26,9 @@ func Text(report model.Report, cfg TextConfig) string {
 		return code + s + "\x1b[0m"
 	}
 
-	headerColor := "\x1b[36m"
-	scoreColor := scoreColor(report.Score.Overall)
+	palette := pickPalette()
+	headerColor := palette.Header
+	scoreColor := scoreColor(report.Score.Overall, palette)
 
 	fmt.Fprintf(b, "%s\n", color("Roastgit Report", headerColor))
 	fmt.Fprintf(b, "Repo: %s (%s)\n", report.Repo.Name, report.Repo.Path)
@@ -154,17 +157,111 @@ func percent(a, b int) float64 {
 	return math.Round(float64(a)*1000/float64(b)) / 10
 }
 
-func scoreColor(score int) string {
+type colorPalette struct {
+	Header    string
+	ScoreGood string
+	ScoreOk   string
+	ScoreMid  string
+	ScoreBad  string
+}
+
+func scoreColor(score int, palette colorPalette) string {
 	switch {
 	case score >= 85:
-		return "\x1b[32m"
+		return palette.ScoreGood
 	case score >= 70:
-		return "\x1b[33m"
+		return palette.ScoreOk
 	case score >= 50:
-		return "\x1b[35m"
+		return palette.ScoreMid
 	default:
-		return "\x1b[31m"
+		return palette.ScoreBad
 	}
+}
+
+func pickPalette() colorPalette {
+	switch terminalBackground() {
+	case "light":
+		return colorPalette{
+			Header:    ansiRGB(29, 78, 216),
+			ScoreGood: ansiRGB(35, 125, 74),
+			ScoreOk:   ansiRGB(166, 106, 0),
+			ScoreMid:  ansiRGB(99, 78, 188),
+			ScoreBad:  ansiRGB(184, 45, 56),
+		}
+	default:
+		return colorPalette{
+			Header:    ansiRGB(122, 162, 247),
+			ScoreGood: ansiRGB(158, 206, 106),
+			ScoreOk:   ansiRGB(224, 175, 104),
+			ScoreMid:  ansiRGB(187, 154, 247),
+			ScoreBad:  ansiRGB(247, 118, 142),
+		}
+	}
+}
+
+func terminalBackground() string {
+	// Heuristic based on COLORFGBG; default to dark when unavailable.
+	value := os.Getenv("COLORFGBG")
+	if value == "" {
+		return "dark"
+	}
+	parts := strings.Split(value, ";")
+	bgStr := parts[len(parts)-1]
+	bg, err := strconv.Atoi(bgStr)
+	if err != nil || bg < 0 {
+		return "dark"
+	}
+	r, g, b, ok := ansiColorToRGB(bg)
+	if !ok {
+		return "dark"
+	}
+	luminance := (0.2126*float64(r) + 0.7152*float64(g) + 0.0722*float64(b)) / 255.0
+	if luminance >= 0.6 {
+		return "light"
+	}
+	return "dark"
+}
+
+func ansiColorToRGB(code int) (int, int, int, bool) {
+	if code >= 0 && code <= 15 {
+		base := [16][3]int{
+			{0, 0, 0},
+			{205, 0, 0},
+			{0, 205, 0},
+			{205, 205, 0},
+			{0, 0, 238},
+			{205, 0, 205},
+			{0, 205, 205},
+			{229, 229, 229},
+			{127, 127, 127},
+			{255, 0, 0},
+			{0, 255, 0},
+			{255, 255, 0},
+			{92, 92, 255},
+			{255, 0, 255},
+			{0, 255, 255},
+			{255, 255, 255},
+		}
+		rgb := base[code]
+		return rgb[0], rgb[1], rgb[2], true
+	}
+	if code >= 16 && code <= 231 {
+		c := code - 16
+		r := c / 36
+		g := (c % 36) / 6
+		b := c % 6
+		scale := []int{0, 95, 135, 175, 215, 255}
+		return scale[r], scale[g], scale[b], true
+	}
+	if code >= 232 && code <= 255 {
+		gray := 8 + (code-232)*10
+		return gray, gray, gray, true
+	}
+	return 0, 0, 0, false
+}
+
+func ansiRGB(r, g, b int) string {
+	return fmt.Sprintf("\x1b[38;2;%d;%d;%dm", r, g, b)
 }
 
 func truncate(s string, max int) string {
