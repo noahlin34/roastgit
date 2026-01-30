@@ -29,61 +29,81 @@ func Text(report model.Report, cfg TextConfig) string {
 	palette := pickPalette()
 	headerColor := palette.Header
 	scoreColor := scoreColor(report.Score.Overall, palette)
+	label := func(s string) string { return color(s, palette.Label) }
+	muted := func(s string) string { return color(s, palette.Muted) }
+	accent := func(s string) string { return color(s, palette.Accent) }
+	body := func(s string) string { return color(s, palette.Body) }
+	bulletPrefix := color("- ", palette.Bullet)
+	headline := report.Roasts.Headline
+	if headline != "" {
+		headline = accent(headline)
+	}
 
 	fmt.Fprintf(b, "%s\n", color("Roastgit Report", headerColor))
-	fmt.Fprintf(b, "Repo: %s (%s)\n", report.Repo.Name, report.Repo.Path)
-	fmt.Fprintf(b, "HEAD: %s\n", util.ShortSHA(report.Repo.Head))
-	fmt.Fprintf(b, "Commits analyzed: %d\n", report.Repo.CommitCount)
+	fmt.Fprintf(b, "%s %s (%s)\n", label("Repo:"), report.Repo.Name, muted(report.Repo.Path))
+	fmt.Fprintf(b, "%s %s\n", label("HEAD:"), accent(util.ShortSHA(report.Repo.Head)))
+	fmt.Fprintf(b, "%s %s\n", label("Commits analyzed:"), body(fmt.Sprintf("%d", report.Repo.CommitCount)))
 	if report.Filters.Since != "" || report.Filters.Until != "" {
-		fmt.Fprintf(b, "Range: %s -> %s\n", emptyAsAll(report.Filters.Since), emptyAsAll(report.Filters.Until))
+		fmt.Fprintf(b, "%s %s -> %s\n", label("Range:"), body(emptyAsAll(report.Filters.Since)), body(emptyAsAll(report.Filters.Until)))
 	}
 	if report.Filters.Author != "" {
-		fmt.Fprintf(b, "Author filter: %s\n", report.Filters.Author)
+		fmt.Fprintf(b, "%s %s\n", label("Author filter:"), body(report.Filters.Author))
 	}
-	fmt.Fprintf(b, "\n%s %s\n", color(fmt.Sprintf("Overall Score: %d/100", report.Score.Overall), scoreColor), report.Roasts.Headline)
+	fmt.Fprintf(b, "\n%s %s\n", color(fmt.Sprintf("Overall Score: %d/100", report.Score.Overall), scoreColor), headline)
 	if cfg.Explain && len(report.Score.Explain) > 0 {
-		fmt.Fprintf(b, "Score breakdown: message %d/30, hygiene %d/30, cadence %d/20, size %d/20\n",
+		fmt.Fprintf(b, "%s %s\n", muted("Score breakdown:"), body(fmt.Sprintf("message %d/30, hygiene %d/30, cadence %d/20, size %d/20",
 			report.Score.Breakdown.MessageQuality,
 			report.Score.Breakdown.Hygiene,
 			report.Score.Breakdown.Cadence,
 			report.Score.Breakdown.SizeDiscipline,
-		)
-		fmt.Fprintf(b, "Explain: %s\n", report.Score.Explain["overall"])
+		)))
+		fmt.Fprintf(b, "%s %s\n", muted("Explain:"), body(report.Score.Explain["overall"]))
 	}
 
-	writeSection(b, color("Commit Message Crimes", headerColor), messageBullets(report.Metrics), report.Roasts.Sections["commit_messages"])
-	writeSection(b, color("Time & Cadence", headerColor), timeBullets(report.Metrics), report.Roasts.Sections["time_cadence"])
-	writeSection(b, color("Repo Hygiene", headerColor), hygieneBullets(report.Metrics), report.Roasts.Sections["repo_hygiene"])
-	writeSection(b, color("Chunkiness", headerColor), sizeBullets(report.Metrics), report.Roasts.Sections["chunkiness"])
+	writeSection(b, color("Commit Message Crimes", headerColor), messageBullets(report.Metrics), report.Roasts.Sections["commit_messages"], color, bulletPrefix, palette.Body, palette.Accent)
+	writeSection(b, color("Time & Cadence", headerColor), timeBullets(report.Metrics), report.Roasts.Sections["time_cadence"], color, bulletPrefix, palette.Body, palette.Accent)
+	writeSection(b, color("Repo Hygiene", headerColor), hygieneBullets(report.Metrics), report.Roasts.Sections["repo_hygiene"], color, bulletPrefix, palette.Body, palette.Accent)
+	writeSection(b, color("Chunkiness", headerColor), sizeBullets(report.Metrics), report.Roasts.Sections["chunkiness"], color, bulletPrefix, palette.Body, palette.Accent)
 
 	if len(report.Offenders) > 0 {
 		fmt.Fprintf(b, "\n%s\n", color("Top Offenders", headerColor))
 		for _, off := range report.Offenders {
 			subject := truncate(off.Subject, 60)
-			date := off.Date
+			date := off.Date[:10]
 			reason := strings.Join(off.Reasons, ", ")
-			fmt.Fprintf(b, "- %s %s %s -- %s\n", util.ShortSHA(off.SHA), date[:10], subject, reason)
+			fmt.Fprintf(b, "%s%s %s %s -- %s\n",
+				bulletPrefix,
+				accent(util.ShortSHA(off.SHA)),
+				muted(date),
+				body(subject),
+				label(reason),
+			)
 		}
 	}
 
 	if len(report.Roasts.Tips) > 0 {
 		fmt.Fprintf(b, "\n%s\n", color("Tips", headerColor))
 		for _, tip := range report.Roasts.Tips {
-			fmt.Fprintf(b, "- %s\n", tip)
+			fmt.Fprintf(b, "%s%s\n", bulletPrefix, accent(tip))
 		}
 	}
 
-	fmt.Fprintf(b, "\nHints: try --deep for full size analysis, --wholesome for kinder output, or --json for machine use.\n")
+	hint := fmt.Sprintf("try %s for full size analysis, %s for kinder output, or %s for machine use.",
+		accent("--deep"),
+		accent("--wholesome"),
+		accent("--json"),
+	)
+	fmt.Fprintf(b, "\n%s %s\n", label("Hints:"), hint)
 	return b.String()
 }
 
-func writeSection(b *strings.Builder, title string, bullets []string, summary string) {
+func writeSection(b *strings.Builder, title string, bullets []string, summary string, colorize func(string, string) string, bulletPrefix string, bulletColor string, summaryColor string) {
 	fmt.Fprintf(b, "\n%s\n", title)
 	for _, bullet := range bullets {
-		fmt.Fprintf(b, "- %s\n", bullet)
+		fmt.Fprintf(b, "%s%s\n", bulletPrefix, colorize(bullet, bulletColor))
 	}
 	if summary != "" {
-		fmt.Fprintf(b, "%s\n", summary)
+		fmt.Fprintf(b, "%s\n", colorize(summary, summaryColor))
 	}
 }
 
@@ -159,6 +179,11 @@ func percent(a, b int) float64 {
 
 type colorPalette struct {
 	Header    string
+	Label     string
+	Bullet    string
+	Muted     string
+	Accent    string
+	Body      string
 	ScoreGood string
 	ScoreOk   string
 	ScoreMid  string
@@ -183,16 +208,26 @@ func pickPalette() colorPalette {
 	case "light":
 		return colorPalette{
 			Header:    ansiRGB(29, 78, 216),
-			ScoreGood: ansiRGB(35, 125, 74),
-			ScoreOk:   ansiRGB(166, 106, 0),
-			ScoreMid:  ansiRGB(99, 78, 188),
-			ScoreBad:  ansiRGB(184, 45, 56),
+			Label:     ansiRGB(14, 116, 144),
+			Bullet:    ansiRGB(21, 128, 61),
+			Muted:     ansiRGB(90, 98, 110),
+			Accent:    ansiRGB(180, 83, 9),
+			Body:      ansiRGB(30, 41, 59),
+			ScoreGood: ansiRGB(21, 128, 61),
+			ScoreOk:   ansiRGB(180, 83, 9),
+			ScoreMid:  ansiRGB(109, 40, 217),
+			ScoreBad:  ansiRGB(185, 28, 28),
 		}
 	default:
 		return colorPalette{
-			Header:    ansiRGB(122, 162, 247),
-			ScoreGood: ansiRGB(158, 206, 106),
-			ScoreOk:   ansiRGB(224, 175, 104),
+			Header:    ansiRGB(138, 180, 255),
+			Label:     ansiRGB(125, 211, 252),
+			Bullet:    ansiRGB(163, 214, 102),
+			Muted:     ansiRGB(148, 163, 184),
+			Accent:    ansiRGB(255, 205, 120),
+			Body:      ansiRGB(226, 232, 240),
+			ScoreGood: ansiRGB(102, 204, 134),
+			ScoreOk:   ansiRGB(245, 201, 102),
 			ScoreMid:  ansiRGB(187, 154, 247),
 			ScoreBad:  ansiRGB(247, 118, 142),
 		}
