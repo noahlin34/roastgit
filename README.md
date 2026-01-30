@@ -1,4 +1,4 @@
-# roastgit 🔥😈
+# 😈 roastgit
 
 **Roast your Git habits. Learn something. Laugh a little.**
 
