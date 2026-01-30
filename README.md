@@ -1,3 +1,5 @@
+<p align="center"><img width=50% height=50% src="https://github.com/user-attachments/assets/eb91457c-3d4a-4e8c-a093-bbda381bc923" /></p>
+
 # 😈 roastgit
 
 **Roast your Git habits. Learn something. Laugh a little.**
